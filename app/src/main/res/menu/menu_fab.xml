@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_add_color"
+        android:title="Color"
+        android:icon="@drawable/ic_invert_colors_black_24dp"/>
+    <item
+        android:id="@+id/action_add_number"
+        android:title="Number"
+        android:icon="@drawable/ic_numbers"/>
+    <item
+        android:id="@+id/action_add_switch"
+        android:title="Switch"
+        android:icon="@drawable/ic_switch"/>
+</menu>
