@@ -27,4 +27,5 @@ dependencies {
     compile 'com.azeesoft.lib.colorpicker:colorpicker:1.0.8@aar'
     compile 'io.github.yavski:fab-speed-dial:1.0.4'
     compile "com.github.danielnilsson9:color-picker-view:1.4.0@aar"
+    compile project(':standOut')
 }

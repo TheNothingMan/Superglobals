@@ -1,20 +1,20 @@
 package com.stegabach.superglobals;
 
-import android.app.Dialog;
+import android.app.Activity;
 import android.app.DialogFragment;
-import android.content.DialogInterface;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.support.v7.app.AlertDialog;
-import android.text.Editable;
-import android.text.TextWatcher;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.danielnilsson9.colorpickerview.view.ColorPanelView;
 import com.github.danielnilsson9.colorpickerview.view.ColorPickerView;
@@ -29,25 +29,30 @@ public class ColorDialogFragment extends DialogFragment{
     private ColorPickerView colorPicker;
     private EditText hexEdit;
     private String hexValue;
+    private EditText nameEdit;
+    private String name;
 
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    public interface ColorDialogListener{
+        public void onColorPicked(DialogFragment fragment);
+        public void onCancel(DialogFragment fragment);
     }
 
+    ColorDialogListener mListener;
+
+    @Nullable
     @Override
-    public Dialog onCreateDialog(Bundle savedInstanceState) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        LayoutInflater inflater = getActivity().getLayoutInflater();
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
         View view = inflater.inflate(R.layout.dialog_color,null);
+
+        final Bundle args = getArguments();
 
         oldPanel = (ColorPanelView) view.findViewById(R.id.colorpickerview__color_panel_old);
         newPanel = (ColorPanelView) view.findViewById(R.id.colorpickerview__color_panel_new);
         colorPicker = (ColorPickerView) view.findViewById(R.id.colorpickerview__color_picker_view);
         hexEdit = (EditText) view.findViewById(R.id.hex_edit);
-
-
+        nameEdit = (EditText) view.findViewById((R.id.name_edit));
+        //update the hex field
         colorPicker.setOnColorChangedListener(new ColorPickerView.OnColorChangedListener() {
             @Override
             public void onColorChanged(int newColor) {
@@ -56,6 +61,7 @@ public class ColorDialogFragment extends DialogFragment{
             }
         });
 
+        //get input from hex field and update color picker
         hexEdit.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
@@ -75,22 +81,73 @@ public class ColorDialogFragment extends DialogFragment{
             }
         });
 
-        builder.setView(view)
-        .setPositiveButton(R.string.button_ok, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
+        //react on dialog buttons
+        Button button_ok = (Button) view.findViewById(R.id.button_ok);
+        Button button_cancel = (Button) view.findViewById(R.id.button_cancel);
 
-            }
-        })
-        .setNegativeButton(R.string.button_cancel, new DialogInterface.OnClickListener() {
+        button_ok.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(DialogInterface dialog, int which) {
-                ColorDialogFragment.this.getDialog().cancel();
-            }
-        })
-        ;
+            public void onClick(View v) {
+                name = nameEdit.getText().toString();
+                if (name.equals("")){
+                    Toast.makeText(getActivity(),R.string.toast_name_empty, Toast.LENGTH_SHORT).show();
+                    return;
+                }
 
-        return builder.create();
+                Superglobal superglobal;
+                GlobalDatabaseHelper db = new GlobalDatabaseHelper(getActivity());
+                long result = 0;
+                if (args.containsKey(SuperglobalsContract.EXTRA_ID)) {
+                    superglobal = db.getSuperglobalById(args.getLong(SuperglobalsContract.EXTRA_ID));
+                    superglobal.setValueString(hexValue);
+                    superglobal.setName(name);
+                    result = db.updateSuperglobal(superglobal);
+                }else {
+                    superglobal = new Superglobal(name, Superglobal.TYPE_COLOR, hexValue);
+                    result = db.createSuperglobal(superglobal);
+                }
+                if (result == -1) {
+                    Toast.makeText(getActivity(), R.string.toast_name_duplicate, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                IntentPusher.fireIntents(getActivity(),name,hexValue);
+                mListener.onColorPicked(ColorDialogFragment.this);
+                getDialog().dismiss();
+            }
+        });
+
+        button_cancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mListener.onCancel(ColorDialogFragment.this);
+                getDialog().dismiss();
+            }
+        });
+
+        //Init defaults or already defined values
+        colorPicker.setColor(args.getInt(SuperglobalsContract.EXTRA_COLOR_INT,SuperglobalsContract.DEFAULT_COLOR));
+        oldPanel.setColor(args.getInt(SuperglobalsContract.EXTRA_COLOR_INT,SuperglobalsContract.DEFAULT_COLOR));
+        newPanel.setColor(args.getInt(SuperglobalsContract.EXTRA_COLOR_INT,SuperglobalsContract.DEFAULT_COLOR));
+        nameEdit.setText(args.getString(SuperglobalsContract.EXTRA_NAME,""));
+        updateText(args.getInt(SuperglobalsContract.EXTRA_COLOR_INT,SuperglobalsContract.DEFAULT_COLOR));
+
+        return view;
+
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+
+        try {
+            // Instantiate the NoticeDialogListener so we can send events to the host
+            mListener = (ColorDialogListener) activity;
+        } catch (ClassCastException e) {
+            // The activity doesn't implement the interface, throw exception
+            throw new ClassCastException(activity.toString()
+                    + " must implement ColorDialogListener");
+        }
+
     }
 
     private void updateText(int color){
@@ -100,7 +157,8 @@ public class ColorDialogFragment extends DialogFragment{
 
     private void updateColorFromHex(){
         try {
-            colorPicker.setColor(Color.parseColor(hexEdit.getText().toString()));
+            hexValue = hexEdit.getText().toString();
+            colorPicker.setColor(Color.parseColor(hexValue));
             newPanel.setColor(colorPicker.getColor());
         }catch (Exception e) {
             Log.d("colorPicker", "onEditorAction: " + e);

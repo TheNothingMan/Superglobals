@@ -41,7 +41,6 @@
         app:fabGravity="bottom_end"
         app:fabDrawableTint="#FFFFFF"
         android:gravity="bottom|end"
-        app:fabBackgroundTint="@color/lightBlue"
         app:miniFabBackgroundTint="@color/miniFab" />
 
 </android.support.design.widget.CoordinatorLayout>
